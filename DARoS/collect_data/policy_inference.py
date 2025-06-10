@@ -27,15 +27,16 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1RoughEnvCfg_PLAY
 from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY
 
-from scripts.DARoS.collect_data.DataRecoder import DataRecoder
+from DataRecoder import DataRecoder
 
 def main():
+    #works with rsl_rl given that it saves via torch.jit.load
     policy_path = os.path.abspath(args_cli.checkpoint)
     file_content = omni.client.read_file(policy_path)[2]
     file = io.BytesIO(memoryview(file_content).tobytes())
     policy = torch.jit.load(file, map_location=args_cli.device)
 
-    env_cfg = H1RoughEnvCfg_PLAY()
+    env_cfg = MultidoormanEnvCfg_PLAY()
     env_cfg.scene.num_envs = 1
     env_cfg.curriculum = None
     env_cfg.sim.device = args_cli.device
@@ -49,23 +50,42 @@ def main():
 
     num_episodes = 1000
     curr_episode = 0
+
+    # For Debug
+    # obs, _ = env.reset()
+    # with torch.inference_mode():
+    #     while simulation_app.is_running():
+    #         action = policy(obs["policy"])
+    #         print("Action:", action)
+    #         obs, rew, term, _, _ = env.step(action)
+    #         print("Observation: ", obs)
     
     # MDP
-    obs, _ = env.reset()
-    term = True
-    while curr_episode < num_episodes:
-        with torch.inference_mode():
-            while simulation_app.is_running():
-                if not term:
-                    action = policy(obs["policy"])
-                    print("Action: ", action)
-                    obs, rew, term, _, _ = env.step(action)
-                    print("Observation: ", obs)
-                    data_recorder.write_data(observation=obs, reward=rew, termination_flag=term, cam_data=None)
+    obs, _ = env.reset() #s_0
+    res = False
+    with torch.inference_mode():
+        while simulation_app.is_running():
+            print(f"Collecting {curr_episode+1}/{num_episodes}")
+            while curr_episode < num_episodes:
+                if not res:
+                    action = policy(obs["policy"]) #a_0
+                    #print("Action: ", action)
+                    new_obs, rew, term, res, _ = env.step(action) #s_t+1, r_t+1
+                    
+                    #print("Observation: ", obs)
+                    #tem = env.episode_length_buf.cpu().item() >= env.max_episode_length 
+                    # TODO: need to figure out how timetep work
+                    data_recorder.write_data_to_buffer(observation=obs, action=action, reward=rew, 
+                                                       termination_flag=res, cam_data=None, 
+                                                       debug_stuff=[env.max_episode_length, env.episode_length_buf.cpu().item()])
+                    obs = new_obs #s_t <- s_t+1
                 else:
+                    data_recorder.dump_buffer_data()
                     obs, _ = env.reset()
                     data_recorder.reset()
                     curr_episode +=1
+                    res = False
+                    print(f"Collecting {curr_episode+1}/{num_episodes}")
 
 if __name__ == "__main__":
     main()
