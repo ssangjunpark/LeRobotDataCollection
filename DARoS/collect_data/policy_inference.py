@@ -25,18 +25,21 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
 from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1RoughEnvCfg_PLAY
-from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY
+from isaaclab_tasks.manager_based.classic.cartpole.cartpole_camera_env_cfg import CartpoleRGBCameraEnvCfg
+from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY, MultidoormanCameraEnvCfg_PLAY
 
 from DataRecoder import DataRecoder
 
 def main():
     #works with rsl_rl given that it saves via torch.jit.load
+    # rsl_rl makes working with camrea pain.... does this mean we need to work with rl games???
     policy_path = os.path.abspath(args_cli.checkpoint)
     file_content = omni.client.read_file(policy_path)[2]
     file = io.BytesIO(memoryview(file_content).tobytes())
     policy = torch.jit.load(file, map_location=args_cli.device)
 
-    env_cfg = MultidoormanEnvCfg_PLAY()
+    #env_cfg = MultidoormanEnvCfg_PLAY()
+    env_cfg = MultidoormanCameraEnvCfg_PLAY()
     env_cfg.scene.num_envs = 1
     env_cfg.curriculum = None
     env_cfg.sim.device = args_cli.device
@@ -46,20 +49,26 @@ def main():
 
     env = ManagerBasedRLEnv(cfg=env_cfg)
 
-    data_recorder = DataRecoder()
-
     num_episodes = 1000
     curr_episode = 0
 
+    image_size = 24*24*3
+
+    dt = env.physics_dt
+
+    data_recorder = DataRecoder(dt=dt)
+
     # For Debug
     # obs, _ = env.reset()
+    # print(obs["policy"][0].detach().cpu().numpy()[:-image_size].shape) # type: ignore
     # with torch.inference_mode():
     #     while simulation_app.is_running():
+    #         print(type(obs["policy"]))
     #         action = policy(obs["policy"])
-    #         print("Action:", action)
+    #         #print("Action:", action)
     #         obs, rew, term, _, _ = env.step(action)
-    #         print("Observation: ", obs)
-    
+    #         #print("Observation: ", obs)
+
     # MDP
     obs, _ = env.reset() #s_0
     res = False
@@ -77,7 +86,8 @@ def main():
                     # TODO: need to figure out how timetep work
                     data_recorder.write_data_to_buffer(observation=obs, action=action, reward=rew, 
                                                        termination_flag=res, cam_data=None, 
-                                                       debug_stuff=[env.max_episode_length, env.episode_length_buf.cpu().item()])
+                                                       debug_stuff=[env.max_episode_length, env.episode_length_buf.cpu().item()],
+                                                       image_size=image_size)
                     obs = new_obs #s_t <- s_t+1
                 else:
                     data_recorder.dump_buffer_data()
