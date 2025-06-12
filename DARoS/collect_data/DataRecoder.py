@@ -14,18 +14,6 @@ class DataRecoder:
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
 
-        self.vid_dir_wrist1 = SAVE_DIR + 'videos/chunk_000/observation.images.vid_dir_wrist1'
-        if not os.path.exists(self.vid_dir_wrist1):
-            os.makedirs(self.vid_dir_wrist1)
-
-        self.vid_dir_writst2 =SAVE_DIR + 'videos/chunk_000/observation.images.vid_dir_wrist2'
-        if not os.path.exists(self.vid_dir_writst2):
-            os.makedirs(self.vid_dir_writst2)
-
-        self.vid_dir_head =SAVE_DIR + 'videos/chunk_000/observation.images.vid_dir_head'
-        if not os.path.exists(self.vid_dir_head):
-            os.makedirs(self.vid_dir_head)
-
         # episode index
         self.episode_index = 0
         self.index = 0
