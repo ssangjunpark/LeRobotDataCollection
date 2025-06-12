@@ -40,10 +40,6 @@ class DataRecoder:
         self.timestamp = 0
         self.frame_index = 0
 
-        self.wrist1_camera_array = []
-        self.wrist2_camera_array = []
-        self.head_camera_array = []
-
         # this is for data logging 
         self.column_index = 0
 
