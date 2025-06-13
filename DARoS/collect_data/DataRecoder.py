@@ -64,7 +64,7 @@ class DataRecoder:
 
         img_dict = {
             'bytes' : img_binary,
-            'frame' : img_file_name
+            'path' : img_file_name
         }
 
         #print(termination_flag)

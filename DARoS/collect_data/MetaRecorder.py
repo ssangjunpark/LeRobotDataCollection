@@ -66,7 +66,7 @@ class MetaRecorder:
             if isinstance(sample, (np.ndarray, list, tuple)):
                 arr = np.array(sample)
                 data_type = str(arr.dtype)
-                data_shape = [str(arr.shape).split(',')[0].split('(')[1]]
+                data_shape = [int(str(arr.shape).split(',')[0].split('(')[1])]
             else:
                 data_type = str(inference_df[col].dtype)
                 data_shape = [1]
@@ -88,7 +88,7 @@ class MetaRecorder:
 
         fps_l = []
         for file in all_files:
-            df = pd.read_parquet(self.data_folder_path + '/' + all_files[0])
+            df = pd.read_parquet(self.data_folder_path + '/' + file)
             total_frames += len(df)
             unique_task_indices.update(df['task_index'].unique().tolist())
             ts = df['timestamp'].values
@@ -105,7 +105,7 @@ class MetaRecorder:
         splits = {"train":f"0:{total_episodes}"}
 
         info = {
-            "codebase_version": "v1.0",
+            "codebase_version": "v2.0",
             "robot_type": "realmandoor",
             "total_episodes": total_episodes,
             "total_frames": total_frames,
@@ -134,7 +134,7 @@ class MetaRecorder:
         preprocessed_stats = {}
 
         for file in all_files:
-            df = pd.read_parquet(self.data_folder_path + '/' + all_files[0])
+            df = pd.read_parquet(self.data_folder_path + '/' + file)
 
             for col in df.columns:
                 #first create place holder with sample on top
@@ -156,8 +156,8 @@ class MetaRecorder:
                             "sum" : np.zeros((C,), dtype=np.float64),
                             "sum_sq": np.zeros((C,), dtype=np.float64),
                             "pixel_count" : 0,
-                            "min" : np.zeros((C,), dtype=np.float64),
-                            "max" : np.zeros((C,), dtype=np.float64)
+                            "min" : np.full((C,), np.inf, dtype=np.float64),
+                            "max" : np.full((C,), -np.inf, dtype=np.float64)
                         }
                     # when we see other numerical data
                     else:
@@ -172,8 +172,8 @@ class MetaRecorder:
                             "sum" : np.zeros(arr.flatten().shape, dtype=np.float64),
                             "sum_sq": np.zeros(arr.flatten().shape, dtype=np.float64),
                             "count" : 0,
-                            "min" : np.zeros(arr.flatten().shape, dtype=np.float64),
-                            "max" : np.zeros(arr.flatten().shape, dtype=np.float64)
+                            "min" : np.full(arr.flatten().shape, np.inf, dtype=np.float64),
+                            "max" : np.full(arr.flatten().shape, -np.inf, dtype=np.float64)
                         }
                 
                 col_dict_point = preprocessed_stats.get(col)
@@ -228,10 +228,10 @@ class MetaRecorder:
                 max = value["max"].tolist()
 
                 dump_dict[key] = {
-                    "mean" : format_for_RGB(mean),
-                    "std" : format_for_RGB(np.sqrt(var).tolist()),
-                    "min" : format_for_RGB(min),
-                    "max" : format_for_RGB(max),
+                    "mean" : self._format_for_RGB(mean),
+                    "std" : self._format_for_RGB(np.sqrt(var).tolist()),
+                    "min" : self._format_for_RGB(min),
+                    "max" : self._format_for_RGB(max),
                 }
                 # print(dump_dict)
                 
@@ -250,11 +250,15 @@ class MetaRecorder:
                     "max" : max,
                 }
         
+        #out_f_name = 'episodes_stats.jsonl'
+        #with open(out_f_name, 'w') as f:
+        #    f.write(json.dumps(dump_dict))
+        #    f.write('\n')
+
         out_f_name = 'stats.json'
         with open(out_f_name, 'w') as f:
             json.dump(dump_dict, f, indent=4)
-
-        print("WARNING (stats.json): \nstats.json 1) Need to mannually convert bool min max (REQUIRED)")
+        print("WARNING (stats.jsonl): \nstats.jsonl 1) Need to mannually convert bool min max (REQUIRED)")
         
 
     def generate_tasks_jsonl(self, tasks):
@@ -286,5 +290,5 @@ class MetaRecorder:
         print(f"Successfully generated {f_name} to {os.getcwd()}")
 
 
-def format_for_RGB(lst):
-    return [[[v]] for v in lst]
+    def _format_for_RGB(self, lst):
+        return [[[v]] for v in lst]

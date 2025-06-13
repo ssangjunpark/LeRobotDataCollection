@@ -99,3 +99,19 @@
             video_backend (str | None, optional): Video backend to use for decoding videos. Defaults to torchcodec when available int the platform; otherwise, defaults to 'pyav'.
                 You can also use the 'pyav' decoder used by Torchvision, which used to be the default option, or 'video_reader' which is another decoder of Torchvision.
         """
+
+
+
+Output:
+Observation:  {'policy': tensor([[-1.6252e-02,  2.8252e-01,  4.6711e-02, -1.7154e-02,  1.9496e-02,
+          1.9730e-01, -4.3192e-01, -1.8661e+00,  2.3277e+00,  1.1371e+00,
+          2.4158e+00, -9.5224e-01,  3.9705e-01, -1.0330e-03,  5.6104e-02,
+         -2.6792e-01, -2.7081e-02,  6.8614e-02,  7.5082e-02, -1.3081e-01,
+          0.0000e+00,  0.0000e+00,  0.0000e+00, -1.8967e-08, -1.2402e-08,
+         -5.9865e-09,  1.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,
+          3.4374e-09,  4.6457e-24, -2.0491e-01, -2.9442e-01,  8.4676e-01,
+          4.9618e-01,  9.9320e-01,  1.3456e-02, -1.2478e+00, -6.9978e-01,
+         -1.4318e+00,  9.0204e-01,  1.4426e+00,  9.7389e-01, -4.6012e-01]],
+       device='cuda:0')}
+Action: tensor([[ 0.1504,  1.1394, -1.2100, -0.2474, -1.0293,  0.8183,  1.6202,  1.0407,
+          1.7967, -0.6852, -2.0378, -0.7327, -0.0421]], device='cuda:0')
