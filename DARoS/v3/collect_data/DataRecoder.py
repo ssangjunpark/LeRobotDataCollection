@@ -6,6 +6,8 @@ import pyarrow.parquet as pq
 import io
 from PIL import Image
 
+import matplotlib.pyplot as plt
+
 SAVE_DIR = os.getcwd() + "/LeRobotData/"
 
 class DataRecoder:
@@ -33,23 +35,28 @@ class DataRecoder:
 
     def write_data_to_buffer(self, observation, action, reward, termination_flag, cam_data, debug_stuff, image_size):
         if debug_stuff[1] % (debug_stuff[0]//5) == 0:
-            print(f"Write Data: {(debug_stuff[1]/debug_stuff[0]) * 100:.3f}%")
+            print(f"Write Data on Buffer: {(debug_stuff[1]/debug_stuff[0]) * 100:.3f}%")
 
         obs_numerical = observation['policy'].cpu().numpy()[0][:-image_size]
         obs_image_top = observation['policy'].cpu().numpy()[0][-image_size:]
 
     
-        obbs_image_top_transformed = np.asarray(obs_image_top).reshape((24,24,3))
-        #print(obbs_image_top_transformed)
+        obbs_image_top_transformed = np.asarray(obs_image_top).reshape((256,256,3)) / 255.0
+        # print(obbs_image_top_transformed)
+        # plt.imshow(obbs_image_top_transformed)
+        # plt.show()
+    
         #exit()
 
         obbs_image_top_transformed = np.clip(obbs_image_top_transformed, 0.0, 1.0)
         obbs_image_top_transformed = (obbs_image_top_transformed * 255).astype(np.uint8)
         pil_img_top_trans = Image.fromarray(obbs_image_top_transformed, mode="RGB")
 
+
         img_buf = io.BytesIO()
         pil_img_top_trans.save(img_buf, format="PNG")
         img_binary = img_buf.getvalue()
+
 
         if self.frame_index <= 9:
             img_file_name = 'frame_00000' + str(self.frame_index) + '.png'
@@ -87,7 +94,7 @@ class DataRecoder:
         # exit()
 
     def dump_buffer_data(self):
-        print("Start Writing Data")
+        print("Dump Buffer Data")
         # exit()
         # dump all the data into corect dir :(
         if self.episode_index <= 9:

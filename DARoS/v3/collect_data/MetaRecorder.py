@@ -9,13 +9,15 @@ from PIL import Image
 from os import listdir
 from os.path import isfile, join
 
-
 SAVE_DIR = os.getcwd() + "/LeRobotData/meta/"
 
 class MetaRecorder:
     def __init__(self, data_folder_path):
         self.data_folder_path = data_folder_path
         self.task = "Grab the door handle"
+
+        if not os.path.exists(SAVE_DIR):
+            os.makedirs(SAVE_DIR)
     
     def generate_episodes_jsonl(self):
         all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
@@ -55,7 +57,7 @@ class MetaRecorder:
         sample_features = {}
 
         data_path = "data/chunk-{episode_chunk:03d}/episode_{episode_index:06d}.parquet"
-        video_path = None
+        video_path = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4"
 
         # just take on df for features since everything is the same
         inference_df = pd.read_parquet(self.data_folder_path + '/' + all_files[0])
@@ -258,7 +260,7 @@ class MetaRecorder:
         #    f.write(json.dumps(dump_dict))
         #    f.write('\n')
 
-        out_f_name = SAVE_DIR + 'stats.json'
+        out_f_name = SAVE_DIR+'stats.json'
         with open(out_f_name, 'w') as f:
             json.dump(dump_dict, f, indent=4)
         print("WARNING (stats.jsonl): \nstats.jsonl 1) Need to mannually convert bool min max (REQUIRED)")

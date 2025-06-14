@@ -11,4 +11,4 @@ import os
 
 
 hub_api = HfApi()
-hub_api.create_tag("ssangjunpark/daros2", tag="v2.0", repo_type="dataset")
+hub_api.create_tag("ssangjunpark/daros14_2036", tag="v2.0", repo_type="dataset")

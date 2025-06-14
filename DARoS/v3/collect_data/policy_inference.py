@@ -23,12 +23,14 @@ import omni
 from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 
 from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1RoughEnvCfg_PLAY
 from isaaclab_tasks.manager_based.classic.cartpole.cartpole_camera_env_cfg import CartpoleRGBCameraEnvCfg
 from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY, MultidoormanCameraEnvCfg_PLAY
 
 from DataRecoder import DataRecoder
+
 
 def main():
     #works with rsl_rl given that it saves via torch.jit.load
@@ -48,11 +50,12 @@ def main():
         env_cfg.sim.use_fabric = False
 
     env = ManagerBasedRLEnv(cfg=env_cfg)
+    #scene = InteractiveScene(env_cfg)
 
     num_episodes = 1000
     curr_episode = 0
 
-    image_size = 24*24*3
+    image_size = 256*256*3
 
     dt = env.physics_dt
 
@@ -60,14 +63,15 @@ def main():
 
     # For Debug
     # obs, _ = env.reset()
-    # print(obs["policy"][0].detach().cpu().numpy()[:-image_size].shape) # type: ignore
+    # #print(obs["policy"][0].detach().cpu().numpy()[:-image_size].shape) # type: ignore
     # with torch.inference_mode():
     #     while simulation_app.is_running():
-    #         print(type(obs["policy"]))
-    #         action = policy(obs["policy"])
-    #         #print("Action:", action)
+    #         #print(type(obs["policy"]))
+    #         #print(env["robot"])
+    #         action = policy(obs["policy"][:, :-image_size])
+    #         print("Action:", action)
     #         obs, rew, term, _, _ = env.step(action)
-    #         #print("Observation: ", obs)
+    #         print("Observation: ", obs)
 
     # MDP
     obs, _ = env.reset() #s_0
@@ -77,7 +81,7 @@ def main():
             print(f"Collecting {curr_episode+1}/{num_episodes}")
             while curr_episode < num_episodes:
                 if not res:
-                    action = policy(obs["policy"][:-image_size]) #a_0
+                    action = policy(obs["policy"][:, :-image_size]) #a_0 # type: ignore
                     #print("Action: ", action)
                     new_obs, rew, term, res, _ = env.step(action) #s_t+1, r_t+1
                     
