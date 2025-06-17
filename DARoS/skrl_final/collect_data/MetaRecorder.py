@@ -81,6 +81,13 @@ class MetaRecorder:
                 'shape' : data_shape,
                 'names' : 'TODO' # I think it is easier to manually fill this out since getting the joint name via script will be a pain...
             }
+
+            # edit for image datas
+            for key, val in sample_features.items():
+                if key.startswith("observation.images."):
+                    val['dtype'] = "image"
+                    val['shape'] = [256, 256, 3]
+                    val['names'] = ["height", "width", "channel"]
         
         # print(sample_features) 
         # {'observation.images.image': {'dtype': 'object', 'shape': [1], 'names': 'TODO'}, 'observation.state': 

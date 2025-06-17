@@ -17,8 +17,8 @@
         "observation.images.image": {
             "dtype": "image",
             "shape": [
-                24,
-                24,
+                256,
+                256,
                 3
             ],
             "names": [

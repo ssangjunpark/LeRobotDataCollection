@@ -18,6 +18,16 @@ observation: tensor([[-9.1644e-02,  4.6365e-02,  4.2678e-01, -8.6003e-02, -3.099
        device='cuda:0')
 observation type: <class 'torch.Tensor'>
 """
+"""
+This is a modified script of skrl/train.py script.
+
+When running this script, the following arguments must be specified:
+--task : to the approperiate gym env registered 
+--checkpoint : to hte torch weights
+--camera_enabled : when using camera data
+--num_envs : 1
+--headless : optional but would use it since rendering on gui takes time
+"""
 
 
 # Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
