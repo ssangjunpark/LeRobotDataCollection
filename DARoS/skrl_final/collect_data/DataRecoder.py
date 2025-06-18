@@ -25,7 +25,7 @@ class DataRecoder:
         self.reset()
 
     def reset(self):
-        self.df = pd.DataFrame(columns=['observation.images.image', 'observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
+        self.df = pd.DataFrame(columns=['observation.images.image', 'observation.images.hand1','observation.images.hand2','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
         
         self.timestamp = 0
         self.frame_index = 0
@@ -37,31 +37,37 @@ class DataRecoder:
         if debug_stuff[1] % (debug_stuff[0]//5) == 0:
             print(f"Write Data on Buffer: {(debug_stuff[1]/debug_stuff[0]) * 100:.3f}%")
 
-        obbs_image_top_transformed = np.clip(cam_data, 0.0, 1.0)
-        obbs_image_top_transformed = (obbs_image_top_transformed * 255).astype(np.uint8)
-        pil_img_top_trans = Image.fromarray(obbs_image_top_transformed, mode="RGB")
+        im_dict_to_be_added = []
+
+        for idx in range(len(cam_data)):
+            obbs_image_top_transformed = np.clip(cam_data[idx], 0.0, 1.0)
+            obbs_image_top_transformed = (obbs_image_top_transformed * 255).astype(np.uint8)
+            pil_img_top_trans = Image.fromarray(obbs_image_top_transformed, mode="RGB")
 
 
-        img_buf = io.BytesIO()
-        pil_img_top_trans.save(img_buf, format="PNG")
-        img_binary = img_buf.getvalue()
+            img_buf = io.BytesIO()
+            pil_img_top_trans.save(img_buf, format="PNG")
+            img_binary = img_buf.getvalue()
 
 
-        if self.frame_index <= 9:
-            img_file_name = 'frame_00000' + str(self.frame_index) + '.png'
-        elif 9 < self.frame_index <= 99:
-            img_file_name = 'frame_0000' + str(self.frame_index) + '.png'
-        elif 99 < self.frame_index <= 999:
-            img_file_name = 'frame_000' + str(self.frame_index) + '.png'
-        elif 999 < self.frame_index <= 9999:
-            img_file_name = 'frame_00' + str(self.frame_index) + '.png'
-        else:
-            img_file_name = 'frame_0' + str(self.frame_index) + '.png'
+            if self.frame_index <= 9:
+                img_file_name = 'frame_00000' + str(self.frame_index) + '.png'
+            elif 9 < self.frame_index <= 99:
+                img_file_name = 'frame_0000' + str(self.frame_index) + '.png'
+            elif 99 < self.frame_index <= 999:
+                img_file_name = 'frame_000' + str(self.frame_index) + '.png'
+            elif 999 < self.frame_index <= 9999:
+                img_file_name = 'frame_00' + str(self.frame_index) + '.png'
+            else:
+                img_file_name = 'frame_0' + str(self.frame_index) + '.png'
 
-        img_dict = {
-            'bytes' : img_binary,
-            'path' : img_file_name
-        }
+            img_dict = {
+                'bytes' : img_binary,
+                'path' : img_file_name
+            }
+
+            im_dict_to_be_added.append(img_dict)
+
         #print(termination_flag)
         # save it into local memory 
 
@@ -70,13 +76,15 @@ class DataRecoder:
         # observation.state, action, timestamp, episode_index, frame_index, index, next.done(optional), task_index(optional)
         # we can also include next.reward and next.done it seems like
         #observation['policy'].cpu().numpy()[0]
-        self.df.loc[self.column_index] = [img_dict, observation.cpu().numpy()[0], action.cpu().numpy()[0], self.timestamp, 
+        self.df.loc[self.column_index] = [im_dict_to_be_added[0], im_dict_to_be_added[1], im_dict_to_be_added[2], 
+                                          observation.cpu().numpy()[0], action.cpu().numpy()[0], self.timestamp, 
                                           self.episode_index, self.frame_index, self.index, reward.cpu().item(), 
                                           termination_flag.cpu().item(), 0]
         self.column_index += 1
         self.timestamp += self.dt
         self.frame_index += 1
         self.index += 1
+        im_dict_to_be_added.clear()
 
         #print(self.df)
         # exit()
