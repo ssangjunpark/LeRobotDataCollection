@@ -217,12 +217,13 @@ def main():
     curr_episode = 0
     image_size = 256*256*3
     res = False
+    term = False
 
     with torch.inference_mode():
         while simulation_app.is_running():
             print(f"Collecting {curr_episode+1}/{num_episodes}")
             while curr_episode < num_episodes:
-                if not res:
+                if not (res or term):
                     outputs = runner.agent.act(obs, timestep=0, timesteps=0)
 
                     if hasattr(env, "possible_agents"):
@@ -252,7 +253,7 @@ def main():
                                 scene['tiled_camera3'].data.output["rgb"][0].cpu().numpy()]
 
                     data_recorder.write_data_to_buffer(observation=obs, action=actions, reward=rew, 
-                                                       termination_flag=res, cam_data=cam_data, 
+                                                       termination_flag=(res or term), cam_data=cam_data, 
                                                        debug_stuff=[env.max_episode_length, env.episode_length_buf.cpu().item()],
                                                        image_size=image_size)
                     
@@ -263,6 +264,7 @@ def main():
                     data_recorder.reset()
                     curr_episode += 1
                     res = False
+                    term = False
                     print(f"Collecting {curr_episode+1}/{num_episodes}")
                     
 

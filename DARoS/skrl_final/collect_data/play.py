@@ -79,6 +79,7 @@ def main():
                         scene['tiled_camera3'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255]
             #print(obs)
             obs = obs['policy'].to(torch.float32).to(device, non_blocking=True)
+
             observation = {
                 'observation.images.top' : cam_data[0].to(device, non_blocking=True).unsqueeze(0),
                 'observation.images.hand1' : cam_data[1].to(device, non_blocking=True).unsqueeze(0),
@@ -87,6 +88,8 @@ def main():
             }
 
             action = policy.select_action(observation)
+            print(action)
+            print(action.shape)
             obs, _, _, _, _ = env.step(action)
 
 if __name__ == "__main__":

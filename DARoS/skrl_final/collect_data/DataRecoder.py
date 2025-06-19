@@ -23,9 +23,9 @@ class DataRecoder:
         self.dt = dt
 
         self.reset()
-
+    
     def reset(self):
-        self.df = pd.DataFrame(columns=['observation.images.image', 'observation.images.hand1','observation.images.hand2','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
+        self.df = pd.DataFrame(columns=['observation.images.top', 'observation.images.hand1','observation.images.hand2','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
         
         self.timestamp = 0
         self.frame_index = 0
@@ -34,32 +34,20 @@ class DataRecoder:
         self.column_index = 0
 
     def write_data_to_buffer(self, observation, action, reward, termination_flag, cam_data, debug_stuff, image_size):
-        if debug_stuff[1] % (debug_stuff[0]//5) == 0:
-            print(f"Write Data on Buffer: {(debug_stuff[1]/debug_stuff[0]) * 100:.3f}%")
-
         im_dict_to_be_added = []
 
         for idx in range(len(cam_data)):
-            obbs_image_top_transformed = np.clip(cam_data[idx], 0.0, 1.0)
-            obbs_image_top_transformed = (obbs_image_top_transformed * 255).astype(np.uint8)
-            pil_img_top_trans = Image.fromarray(obbs_image_top_transformed, mode="RGB")
+            # plt.imshow(cam_data[idx].astype(np.uint8))
+            # plt.title(f"{idx}")
+            # plt.show()
 
+            pil_img_top_trans = Image.fromarray(cam_data[idx].astype(np.uint8), mode="RGB")
 
             img_buf = io.BytesIO()
             pil_img_top_trans.save(img_buf, format="PNG")
             img_binary = img_buf.getvalue()
 
-
-            if self.frame_index <= 9:
-                img_file_name = 'frame_00000' + str(self.frame_index) + '.png'
-            elif 9 < self.frame_index <= 99:
-                img_file_name = 'frame_0000' + str(self.frame_index) + '.png'
-            elif 99 < self.frame_index <= 999:
-                img_file_name = 'frame_000' + str(self.frame_index) + '.png'
-            elif 999 < self.frame_index <= 9999:
-                img_file_name = 'frame_00' + str(self.frame_index) + '.png'
-            else:
-                img_file_name = 'frame_0' + str(self.frame_index) + '.png'
+            img_file_name = self._name_helper('frame', '.png', self.frame_index)
 
             img_dict = {
                 'bytes' : img_binary,
@@ -90,22 +78,40 @@ class DataRecoder:
         # exit()
 
     def dump_buffer_data(self):
-        print("Dump Buffer Data")
-        # exit()
-        # dump all the data into corect dir :(
-        if self.episode_index <= 9:
-            data_file_name = 'episode_00000' + str(self.episode_index) + '.parquet'
-        elif 9 < self.episode_index <= 99:
-            data_file_name = 'episode_0000' + str(self.episode_index) + '.parquet'
-        elif 99 < self.episode_index <= 999:
-            data_file_name = 'episode_000' + str(self.episode_index) + '.parquet'
-        elif 999 < self.episode_index <= 9999:
-            data_file_name = 'episode_00' + str(self.episode_index) + '.parquet'
-        else:
-            data_file_name = 'episode_0' + str(self.episode_index) + '.parquet'
+        data_file_name = self._name_helper('episode', '.parquet', self.episode_index)
+
+        self._update_log_dir()
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
 
         table = pa.Table.from_pandas(self.df)
         pq.write_table(table, self.log_dir + data_file_name)
 
         self.episode_index += 1
         print(f"Complete Writing Data. Saved to {self.log_dir + data_file_name}")
+
+    def _update_log_dir(self):
+        if self.episode_index < 1000:
+            self.log_dir = SAVE_DIR + "data/chunk_000/"
+        elif 1000 <= self.episode_index < 2000:
+            self.log_dir = SAVE_DIR + "data/chunk_001/"
+        elif 2000 <= self.episode_index < 3000:
+            self.log_dir = SAVE_DIR + "data/chunk_002/"
+        elif 3000 <= self.episode_index < 4000:
+            self.log_dir = SAVE_DIR + "data/chunk_003/"
+        else:
+            self.log_dir = SAVE_DIR + "data/chunk_004/"
+
+    def _name_helper(self, name, extension, index):
+        if index <= 9:
+            file_name = f'{str(name)}_00000' + str(index) + str(extension)
+        elif 9 < index <= 99:
+            file_name = f'{str(name)}_0000' + str(index) + str(extension)
+        elif 99 < index <= 999:
+            file_name = f'{str(name)}_000' + str(index) + str(extension)
+        elif 999 < index <= 9999:
+            file_name = f'{str(name)}_00' + str(index) + str(extension)
+        else:
+            file_name = f'{str(name)}_0' + str(index) + str(extension)
+
+        return file_name

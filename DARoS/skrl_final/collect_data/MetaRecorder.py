@@ -144,6 +144,8 @@ class MetaRecorder:
 
         preprocessed_stats = {}
 
+        processed_file_count = 0
+
         for file in all_files:
             df = pd.read_parquet(self.data_folder_path + '/' + file)
 
@@ -225,6 +227,9 @@ class MetaRecorder:
 
                         col_dict_point['min'] = np.minimum(arr, col_dict_point["min"]) # type: ignore
                         col_dict_point['max'] = np.maximum(arr, col_dict_point["max"]) # type: ignore
+            
+            processed_file_count += 1
+            print(f"(stats.json): {processed_file_count}/{len(all_files)} processed ")
 
         dump_dict = {}
         # print(preprocessed_stats)
