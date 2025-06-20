@@ -9,12 +9,17 @@ from PIL import Image
 from os import listdir
 from os.path import isfile, join
 
+import concurrent.futures
+import multiprocessing as mp
+
 SAVE_DIR = os.getcwd() + "/LeRobotData/meta/"
 
 class MetaRecorder:
     def __init__(self, data_folder_path):
         self.data_folder_path = data_folder_path
         self.task = "Grab the door handle"
+
+        self.num_workers = mp.cpu_count()
 
         if not os.path.exists(SAVE_DIR):
             os.makedirs(SAVE_DIR)
@@ -275,8 +280,87 @@ class MetaRecorder:
         with open(out_f_name, 'w') as f:
             json.dump(dump_dict, f, indent=4)
         print("WARNING (stats.jsonl): \nstats.jsonl 1) Need to mannually convert bool min max (REQUIRED)")
-        
 
+    def generate_stats_json_multiprocessing(self):
+        all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
+        all_files.sort()
+
+        paths = [f"{self.data_folder_path}/{file}" for file in all_files]
+        #print(paths)
+
+        # I think this is a very good tutorial: https://www.youtube.com/watch?v=fKl2JW_qrso
+        all_stats = []
+        with concurrent.futures.ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+            ff = [executor.submit(_process_parquet_worker, path) for path in paths]
+
+            counter = 0
+            for f in concurrent.futures.as_completed(ff):
+                l_stats = f.result()
+                all_stats.append(l_stats)
+                counter += 1
+                print(f"(stats.json): {counter}/{len(all_files)} processed")
+
+        
+        preprocessed_stats = {}
+        # print(all_stats)
+        for stat in all_stats:
+            for key, val in stat.items():
+                if key not in preprocessed_stats:
+                    preprocessed_stats[key] = val.copy()
+                else:
+                    if val['dt'] =='img':
+                        preprocessed_stats[key]["sum"] += val['sum']
+                        preprocessed_stats[key]["sum_sq"] += val['sum_sq']
+                        preprocessed_stats[key]["pixel_count"] += val['pixel_count']
+                        preprocessed_stats[key]["min"] = np.minimum(val['min'], preprocessed_stats[key]["min"])
+                        preprocessed_stats[key]["max"] = np.maximum(val['max'], preprocessed_stats[key]["max"])
+                    else:
+                        preprocessed_stats[key]["sum"] += val['sum']
+                        preprocessed_stats[key]["sum_sq"] += val['sum_sq']
+                        preprocessed_stats[key]["count"] += val['count']
+                        preprocessed_stats[key]["min"] = np.minimum(val['min'], preprocessed_stats[key]["min"])
+                        preprocessed_stats[key]["max"] = np.maximum(val['max'], preprocessed_stats[key]["max"])
+
+        dump_dict = {}
+
+        for key, value in preprocessed_stats.items():
+            if value['dt'] == 'img':
+                pix_count = value["pixel_count"]
+                mean = (value["sum"] / pix_count).tolist()
+                var = (value["sum_sq"] / pix_count) - np.square(value["sum"] / pix_count)
+                var = np.clip(var, a_min=0.0, a_max=None)
+                min = value["min"].tolist()
+                max = value["max"].tolist()
+
+                dump_dict[key] = {
+                    "mean" : self._format_for_RGB(mean),
+                    "std" : self._format_for_RGB(np.sqrt(var).tolist()),
+                    "min" : self._format_for_RGB(min),
+                    "max" : self._format_for_RGB(max),
+                }
+                # print(dump_dict)
+                
+            else:
+                count = value['count']
+                mean = (value["sum"] / count).tolist()
+                var = (value["sum_sq"] / count) - np.square(value["sum"] / count)
+                var = np.clip(var, a_min=0.0, a_max=None)
+                min = value["min"].tolist()
+                max = value["max"].tolist()
+
+                dump_dict[key] = {
+                    "mean" : mean,
+                    "std" : np.sqrt(var).tolist(),
+                    "min" : min,
+                    "max" : max,
+                }
+
+        out_f_name = SAVE_DIR+'stats.json'
+        with open(out_f_name, 'w') as f:
+            json.dump(dump_dict, f, indent=4)
+        
+        print("WARNING (stats.jsonl): \nstats.jsonl 1) Need to mannually convert bool min max (REQUIRED)")
+        
     def generate_tasks_jsonl(self, tasks):
         jsonl_data = []
 
@@ -296,7 +380,6 @@ class MetaRecorder:
 
         self._write_data(jsonl_data, SAVE_DIR+'tasks.jsonl')
 
-
     def _write_data(self, data, f_name):
         with open(f_name, 'w') as f:
             for l in data:
@@ -305,6 +388,82 @@ class MetaRecorder:
 
         print(f"Successfully generated {f_name} to {os.getcwd()}")
 
-
     def _format_for_RGB(self, lst):
         return [[[v]] for v in lst]
+
+def _process_parquet_worker(path):
+    # do waht ever did before but no more seen before thing 
+    df = pd.read_parquet(path)
+    stats = {}
+
+    for col in df.columns:
+        col_pointer = df[col]
+        sample = col_pointer.iloc[0]
+
+
+        if isinstance(sample, dict) and 'bytes' in sample:
+            img = Image.open(io.BytesIO(sample['bytes']))
+            img = img.convert("RGB")
+            arr = np.asarray(img).astype(np.float32) / 255.0
+            C = arr.shape[2]
+
+            stats[col] = {
+                "dt" : "img",
+                "sum" : np.zeros((C,), dtype=np.float64),
+                "sum_sq": np.zeros((C,), dtype=np.float64),
+                "pixel_count" : 0,
+                "min" : np.full((C,), np.inf, dtype=np.float64),
+                "max" : np.full((C,), -np.inf, dtype=np.float64)
+            }
+
+            #unlike before now process that file here
+            rows = df[col]
+            for row in rows:
+                b = row.get('bytes', None) if isinstance(row, dict) else None
+                img = Image.open(io.BytesIO(b)) # type: ignore
+                img = img.convert("RGB")
+                arr = np.asarray(img).astype(np.float32) / 255.0
+
+                H, W, C = arr.shape
+                flat = arr.reshape(-1, C)
+                sum = flat.sum(axis=0)
+                sumsq = (flat * flat).sum(axis=0)
+                stats[col]["sum"] += sum # type: ignore
+                stats[col]["sum_sq"] += sumsq # type: ignore
+                stats[col]["pixel_count"] += (H*W) # type: ignore
+
+                stats[col]['min'] = np.minimum(flat.min(axis=0), stats[col]["min"]) # type: ignore
+                stats[col]['max'] = np.maximum(flat.max(axis=0), stats[col]["max"]) # type: ignore
+
+        else:
+            if isinstance(sample, (list, tuple, np.ndarray)):
+                arr = np.asarray(sample, dtype=np.float64)
+            else:
+                arr = np.array([sample], dtype=np.float64)
+        
+            stats[col] = {
+                "dt" : "num",
+                "sum" : np.zeros(arr.flatten().shape, dtype=np.float64),
+                "sum_sq": np.zeros(arr.flatten().shape, dtype=np.float64),
+                "count" : 0,
+                "min" : np.full(arr.flatten().shape, np.inf, dtype=np.float64),
+                "max" : np.full(arr.flatten().shape, -np.inf, dtype=np.float64)
+            }
+
+            #unlike before now process that file here
+            rows = df[col]
+
+            for row in rows:
+                if isinstance(row, (list, tuple, np.ndarray)):
+                    arr = np.asarray(row, dtype=np.float64).flatten()
+                else:
+                    arr = np.array([row], dtype=np.float64)
+
+                stats[col]["sum"] += arr # type: ignore
+                stats[col]["sum_sq"] += arr * arr # type: ignore
+                stats[col]["count"] += 1 # type: ignore
+
+                stats[col]['min'] = np.minimum(arr, stats[col]["min"]) # type: ignore
+                stats[col]['max'] = np.maximum(arr, stats[col]["max"]) # type: ignore
+
+    return stats
