@@ -218,10 +218,12 @@ def main():
     image_size = 256*256*3
     res = False
     term = False
+    num_collected = 0
 
+    
     with torch.inference_mode():
         while simulation_app.is_running():
-            print(f"Collecting {curr_episode+1}/{num_episodes}")
+            print(f"Inferencing {curr_episode+1}/{num_episodes}")
             while curr_episode < num_episodes:
                 if not (res or term):
                     outputs = runner.agent.act(obs, timestep=0, timesteps=0)
@@ -231,26 +233,27 @@ def main():
                     else:
                         actions = outputs[-1].get("mean_actions", outputs[0])
 
+                    #print(str(curr_episode) + " " + str(actions))
+
                     new_obs, rew, term, res, _ = env.step(actions)
-
-                    # print(scene['tiled_camera'].data.output["rgb"].shape)
-                    # plt.imshow(scene['tiled_camera'].data.output["rgb"][0].cpu().numpy())
-                    # plt.title("cam1")
+                    # print(scene['top_camera'].data.output["rgb"].shape)
+                    # plt.imshow(scene['top_camera'].data.output["rgb"][0].cpu().numpy())
+                    # plt.title("top_camera")
                     # plt.show()
 
-                    # print(scene['tiled_camera2'].data.output["rgb"].shape)
-                    # plt.imshow(scene['tiled_camera2'].data.output["rgb"][0].cpu().numpy())
-                    # plt.title("cam2")
+                    # print(scene['left_camera'].data.output["rgb"].shape)
+                    # plt.imshow(scene['left_camera'].data.output["rgb"][0].cpu().numpy())
+                    # plt.title("left_camera")
                     # plt.show()
 
-                    # print(scene['tiled_camera3'].data.output["rgb"].shape)
-                    # plt.imshow(scene['tiled_camera3'].data.output["rgb"][0].cpu().numpy())
-                    # plt.title("cam3")
+                    # print(scene['right_camera'].data.output["rgb"].shape)
+                    # plt.imshow(scene['right_camera'].data.output["rgb"][0].cpu().numpy())
+                    # plt.title("right_camera")
                     # plt.show()
 
-                    cam_data = [scene['tiled_camera1'].data.output["rgb"][0].cpu().numpy(), 
-                                scene['tiled_camera2'].data.output["rgb"][0].cpu().numpy(),
-                                scene['tiled_camera3'].data.output["rgb"][0].cpu().numpy()]
+                    cam_data = [scene['top_camera'].data.output["rgb"][0].cpu().numpy(), 
+                                scene['left_camera'].data.output["rgb"][0].cpu().numpy(),
+                                scene['right_camera'].data.output["rgb"][0].cpu().numpy()]
 
                     data_recorder.write_data_to_buffer(observation=obs, action=actions, reward=rew, 
                                                        termination_flag=(res or term), cam_data=cam_data, 
@@ -259,13 +262,21 @@ def main():
                     
                     obs = new_obs
                 else:
-                    data_recorder.dump_buffer_data()
+                    curr_episode += 1
+                    print('terminated: ', term)
+                    print('truncated: ', res)
+
+                    if term:
+                        data_recorder.dump_buffer_data()
+                        
+                        print(f"Sucess! Writing Data. {num_collected + 1} collected.")
+                        num_collected += 1
+
                     obs, _ = env.reset()
                     data_recorder.reset()
-                    curr_episode += 1
                     res = False
                     term = False
-                    print(f"Collecting {curr_episode+1}/{num_episodes}")
+                    print(f"Inferencing {curr_episode+1}/{num_episodes}")
                     
 
     # close the simulator

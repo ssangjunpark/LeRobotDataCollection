@@ -25,7 +25,7 @@ class DataRecoder:
         self.reset()
     
     def reset(self):
-        self.df = pd.DataFrame(columns=['observation.images.top', 'observation.images.hand1','observation.images.hand2','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
+        self.df = pd.DataFrame(columns=['observation.images.top_camera', 'observation.images.left_camera','observation.images.right_camera','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
         
         self.timestamp = 0
         self.frame_index = 0

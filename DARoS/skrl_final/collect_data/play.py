@@ -26,17 +26,20 @@ from isaaclab.envs import ManagerBasedRLEnv
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
-from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1RoughEnvCfg_PLAY
-from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY, MultidoormanCameraEnvCfg_PLAY
+# from isaaclab_tasks.manager_based.locomotion.velocity.config.h1.rough_env_cfg import H1RoughEnvCfg_PLAY
+# from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_env_cfg import MultidoormanEnvCfg_PLAY, MultidoormanCameraEnvCfg_PLAY
+
+from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_grasp_cfg import MultidoormanGraspCfgPlay, MultidoormanGraspCfgLog
 
 from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionPolicy
 
 def main():
-    policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-18 02:22:46.394533')
+    policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-25 05:45:07.066968/')
 
     device = "cuda"
 
-    env_cfg = MultidoormanEnvCfg_PLAY()
+    # env_cfg = MultidoormanEnvCfg_PLAY()
+    env_cfg = MultidoormanGraspCfgLog()
     env_cfg.scene.num_envs = 1
     env_cfg.curriculum = None
     env_cfg.sim.device = args_cli.device
@@ -68,29 +71,40 @@ def main():
     # plt.imshow(scene['tiled_camera3'].data.output["rgb"][0].cpu().numpy())
     # plt.title("cam3")
     # plt.show()
-
+    done = False
+    trunc = False
     # run inference with the policy
     obs, _ = env.reset()
     with torch.inference_mode():
         while simulation_app.is_running():
+            if not (done or trunc):
+                cam_data = [scene['top_camera'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255, 
+                        scene['left_camera'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255,
+                        scene['right_camera'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255]
+                #print(obs)
+                obs = obs['policy'].to(torch.float32).to(device, non_blocking=True)
 
-            cam_data = [scene['tiled_camera1'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255, 
-                        scene['tiled_camera2'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255,
-                        scene['tiled_camera3'].data.output["rgb"][0].to(torch.float32).permute(2, 0, 1) / 255]
-            #print(obs)
-            obs = obs['policy'].to(torch.float32).to(device, non_blocking=True)
+                observation = {
+                    'observation.images.top_camera' : cam_data[0].to(device, non_blocking=True).unsqueeze(0),
+                    'observation.images.left_camera' : cam_data[1].to(device, non_blocking=True).unsqueeze(0),
+                    'observation.images.right_camera' : cam_data[2].to(device, non_blocking=True).unsqueeze(0),
+                    'observation.state' : obs,
+                }
 
-            observation = {
-                'observation.images.top' : cam_data[0].to(device, non_blocking=True).unsqueeze(0),
-                'observation.images.hand1' : cam_data[1].to(device, non_blocking=True).unsqueeze(0),
-                'observation.images.hand2' : cam_data[2].to(device, non_blocking=True).unsqueeze(0),
-                'observation.state' : obs,
-            }
+                action = policy.select_action(observation)
+                print(action)
+                # print(action.shape)
+                obs, _, done, trunc, _ = env.step(action)
 
-            action = policy.select_action(observation)
-            print(action)
-            print(action.shape)
-            obs, _, _, _, _ = env.step(action)
+            else:
+                if done:
+                    print("Successful!")
+                else:
+                    print("Unsuccessful")
+                done = False
+                trunc = False
+                obs, _ = env.reset()
+                
 
 if __name__ == "__main__":
     main()
