@@ -8,7 +8,9 @@ from PIL import Image
 
 import matplotlib.pyplot as plt
 
-SAVE_DIR = os.getcwd() + "/LeRobotData/"
+from DataCollectionConstants import SAVE_DIRECTORY_PATH_DATA, LEROBOT_DATASET_COLUMN_HEADER
+
+SAVE_DIR = SAVE_DIRECTORY_PATH_DATA
 
 class DataRecoder:
     def __init__(self, dt):
@@ -25,7 +27,7 @@ class DataRecoder:
         self.reset()
     
     def reset(self):
-        self.df = pd.DataFrame(columns=['observation.images.top_camera', 'observation.images.left_camera','observation.images.right_camera','observation.state', 'action', 'timestamp', 'episode_index', 'frame_index', 'index', 'next.reward', 'next.done', 'task_index'])
+        self.df = pd.DataFrame(columns=LEROBOT_DATASET_COLUMN_HEADER)
         
         self.timestamp = 0
         self.frame_index = 0

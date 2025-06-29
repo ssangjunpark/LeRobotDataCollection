@@ -12,7 +12,9 @@ from os.path import isfile, join
 import concurrent.futures
 import multiprocessing as mp
 
-SAVE_DIR = os.getcwd() + "/LeRobotData/meta/"
+from DataCollectionConstants import SAVE_DIRECTORY_PATH_META, JOINT_NAMES
+
+SAVE_DIR = SAVE_DIRECTORY_PATH_META
 
 class MetaRecorder:
     def __init__(self, data_folder_path):
@@ -23,15 +25,29 @@ class MetaRecorder:
 
         if not os.path.exists(SAVE_DIR):
             os.makedirs(SAVE_DIR)
+
+    def _all_data_path_finder(self):
+        all_files = []
+        for sub in os.listdir(self.data_folder_path):
+            sub_path = self.data_folder_path + '/' + sub
+            #print(sub_path)
+            #exit()
+            for file in os.listdir(sub_path):
+                f_path = sub_path + '/' + file
+                # print(f_path)   
+                all_files.append(f_path)
+        
+        all_files.sort()
+        return all_files
+
     
     def generate_episodes_jsonl(self):
-        all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
-        all_files.sort()
+        all_files = self._all_data_path_finder()
 
         jsonl_data = []
 
         for file in all_files:
-            df = pd.read_parquet(self.data_folder_path + '/' + file)
+            df = pd.read_parquet(file)
             
             dump_dict = {}
 
@@ -52,8 +68,7 @@ class MetaRecorder:
         self._write_data(jsonl_data, SAVE_DIR+"episodes.jsonl")
 
     def generate_info_json(self):
-        all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
-        all_files.sort()
+        all_files = self._all_data_path_finder()
         total_episodes = len(all_files)
         total_frames = 0
         unique_task_indices = set()
@@ -65,7 +80,7 @@ class MetaRecorder:
         video_path = "videos/chunk-{episode_chunk:03d}/{video_key}/episode_{episode_index:06d}.mp4"
 
         # just take on df for features since everything is the same
-        inference_df = pd.read_parquet(self.data_folder_path + '/' + all_files[0])
+        inference_df = pd.read_parquet(all_files[0])
         for col in inference_df.columns:
             col_pointer = inference_df[col]
             # print(col_sample)
@@ -84,7 +99,7 @@ class MetaRecorder:
             sample_features[col] = {
                 'dtype' : data_type,
                 'shape' : data_shape,
-                'names' : 'TODO' # I think it is easier to manually fill this out since getting the joint name via script will be a pain...
+                'names' : JOINT_NAMES # I think it is easier to manually fill this out since getting the joint name via script will be a pain...
             }
 
             for key, val in sample_features.items():
@@ -104,7 +119,7 @@ class MetaRecorder:
 
         fps_l = []
         for file in all_files:
-            df = pd.read_parquet(self.data_folder_path + '/' + file)
+            df = pd.read_parquet(file)
             total_frames += len(df)
             unique_task_indices.update(df['task_index'].unique().tolist())
             ts = df['timestamp'].values
@@ -144,15 +159,14 @@ class MetaRecorder:
         print("WARNING (info.json): \ninfo.json 1) Need to mannually write shapes for image data (REQUIRED)\ninfo.json 2) add joint/motor names (if needed)")
 
     def generate_stats_json(self):
-        all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
-        all_files.sort()
+        all_files = self._all_data_path_finder()
 
         preprocessed_stats = {}
 
         processed_file_count = 0
 
         for file in all_files:
-            df = pd.read_parquet(self.data_folder_path + '/' + file)
+            df = pd.read_parquet(file)
 
             for col in df.columns:
                 #first create place holder with sample on top
@@ -282,10 +296,9 @@ class MetaRecorder:
         print("WARNING (stats.jsonl): \nstats.jsonl 1) Need to mannually convert bool min max (REQUIRED)")
 
     def generate_stats_json_multiprocessing(self):
-        all_files = [f for f in listdir(self.data_folder_path) if isfile(join(self.data_folder_path, f))]
-        all_files.sort()
+        all_files = self._all_data_path_finder()
 
-        paths = [f"{self.data_folder_path}/{file}" for file in all_files]
+        paths = all_files
         #print(paths)
 
         # I think this is a very good tutorial: https://www.youtube.com/watch?v=fKl2JW_qrso
@@ -399,7 +412,6 @@ def _process_parquet_worker(path):
     for col in df.columns:
         col_pointer = df[col]
         sample = col_pointer.iloc[0]
-
 
         if isinstance(sample, dict) and 'bytes' in sample:
             img = Image.open(io.BytesIO(sample['bytes']))

@@ -34,8 +34,13 @@ from isaaclab_tasks.manager_based.DARoS.multidoorman.multidoorman_grasp_cfg impo
 from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionPolicy
 
 def main():
-    policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-25 05:45:07.066968/')
+    # 500 epochs 
+    policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-25 20:50:13.040348/')
+    # 2000 epochs
+    # policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-25 05:45:07.066968/')
+    
 
+    #policy = DiffusionPolicy.from_pretrained('/home/isaac/Documents/Github/lerobot/PolicyFromIsaac/outputs/train/2025-06-29 07:56:16.137390/')
     device = "cuda"
 
     # env_cfg = MultidoormanEnvCfg_PLAY()
@@ -92,7 +97,7 @@ def main():
                 }
 
                 action = policy.select_action(observation)
-                print(action)
+                # print(action)
                 # print(action.shape)
                 obs, _, done, trunc, _ = env.step(action)
 
